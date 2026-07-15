@@ -1,0 +1,28 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "env": [
+    {
+      "key": "DATABASE_URL",
+      "type": "string"
+    },
+    {
+      "key": "RESEND_API_KEY",
+      "type": "string"
+    },
+    {
+      "key": "ADMIN_TOKEN",
+      "type": "string"
+    },
+    {
+      "key": "SA8_ANTHROPIC_API_KEY",
+      "type": "string"
+    },
+    {
+      "key": "ANTHROPIC_API_KEY",
+      "type": "string"
+    }
+  ]
+}

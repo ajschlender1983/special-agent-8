@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  serverExternalPackages: ['@anthropic-ai/sdk'],
+  env: {
+    SA8_ANTHROPIC_API_KEY: process.env.SA8_ANTHROPIC_API_KEY,
+  },
 };
 
 export default nextConfig;
