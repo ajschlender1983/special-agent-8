@@ -4,6 +4,9 @@ import { useState, useRef, useCallback, type DragEvent, type ClipboardEvent } fr
 import { motion, AnimatePresence } from 'motion/react';
 import { journeyLabels, brands, journeyBrandMap } from '@/lib/brands';
 import type { JourneyType, BrandId } from '@/lib/brands';
+import ApplicationForm from '@/components/ApplicationForm';
+import Gallery from '@/components/Gallery';
+import CalendarView from '@/components/CalendarView';
 
 type Step = 'context' | 'review' | 'done';
 type Depth = 'quick' | 'standard' | 'deep';
@@ -43,6 +46,11 @@ export default function AdminPage() {
   // Done step state
   const [result, setResult] = useState<CreateResponse | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Demo components visibility
+  const [showApplicationForm, setShowApplicationForm] = useState(false);
+  const [showGallery, setShowGallery] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   const allImages = Object.values(contextImages).flat();
 
@@ -142,7 +150,7 @@ export default function AdminPage() {
       <div className="fixed top-2/3 left-1/2 w-[300px] h-[300px] rounded-full blur-[140px] opacity-[0.03] animate-float pointer-events-none" style={{ background: `radial-gradient(circle, #14b8a6, transparent 70%)`, animationDelay: '-7s' }} />
 
       {/* Main content */}
-      <div className="relative z-[2] max-w-3xl mx-auto px-6 py-16">
+      <div className="relative z-[2] max-w-5xl mx-auto px-6 py-16">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-center mb-12">
           <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-neutral-500 mb-3">Operator Console</div>
@@ -456,6 +464,115 @@ export default function AdminPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Component Showcase Tabs */}
+        <div className="mt-16 pt-12 border-t border-neutral-800">
+          <div className="text-center mb-10">
+            <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-neutral-500 mb-3">Component Library</div>
+            <h2 className="text-3xl font-bold gradient-text" style={{ fontFamily: 'var(--font-heading, "Cormorant Garamond", serif)' }}>
+              Integrated Components
+            </h2>
+          </div>
+
+          {/* Tab buttons */}
+          <div className="flex flex-wrap justify-center gap-3 mb-8">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                setShowApplicationForm(!showApplicationForm);
+                setShowGallery(false);
+                setShowCalendar(false);
+              }}
+              className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                showApplicationForm
+                  ? 'text-neutral-950 shadow-lg'
+                  : 'glass text-neutral-300 hover:text-white'
+              }`}
+              style={showApplicationForm ? { backgroundColor: accentColor } : undefined}
+            >
+              Application Form
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                setShowGallery(!showGallery);
+                setShowApplicationForm(false);
+                setShowCalendar(false);
+              }}
+              className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                showGallery
+                  ? 'text-neutral-950 shadow-lg'
+                  : 'glass text-neutral-300 hover:text-white'
+              }`}
+              style={showGallery ? { backgroundColor: accentColor } : undefined}
+            >
+              Gallery (182 Images)
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                setShowCalendar(!showCalendar);
+                setShowApplicationForm(false);
+                setShowGallery(false);
+              }}
+              className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                showCalendar
+                  ? 'text-neutral-950 shadow-lg'
+                  : 'glass text-neutral-300 hover:text-white'
+              }`}
+              style={showCalendar ? { backgroundColor: accentColor } : undefined}
+            >
+              Calendar
+            </motion.button>
+          </div>
+
+          {/* Component containers */}
+          <AnimatePresence mode="wait">
+            {showApplicationForm && (
+              <motion.div
+                key="form"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                transition={{ duration: 0.3 }}
+                className="glass rounded-2xl p-8 mb-8"
+              >
+                <ApplicationForm accentColor={accentColor} />
+              </motion.div>
+            )}
+
+            {showGallery && (
+              <motion.div
+                key="gallery"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                transition={{ duration: 0.3 }}
+                className="mb-8"
+              >
+                <Gallery accentColor={accentColor} />
+              </motion.div>
+            )}
+
+            {showCalendar && (
+              <motion.div
+                key="calendar"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                transition={{ duration: 0.3 }}
+                className="mb-8"
+              >
+                <CalendarView accentColor={accentColor} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );

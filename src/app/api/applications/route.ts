@@ -1,91 +1,89 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { validateApplicationData } from '@/lib/application-schema';
-import { createApplication } from '@/lib/application-store';
-import { sendConfirmationEmail } from '@/lib/email';
+import { z } from 'zod';
 
-export async function POST(request: NextRequest) {
+// Validation schema (must match the frontend)
+const applicationSchema = z.object({
+  fullName: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Invalid email address'),
+  phone: z.string().min(10, 'Invalid phone number'),
+  company: z.string().min(2, 'Company name is required'),
+  position: z.string().min(2, 'Position is required'),
+  message: z.string().min(10, 'Message must be at least 10 characters'),
+  experience: z.enum(['beginner', 'intermediate', 'advanced']),
+});
+
+type ApplicationData = z.infer<typeof applicationSchema>;
+
+// In-memory storage for demo purposes (replace with database in production)
+const applications: ApplicationData[] = [];
+
+export async function POST(request: Request) {
   try {
+    // Parse request body
     const body = await request.json();
 
-    // Validate the application data
-    const validation = validateApplicationData(body);
-    if (!validation.valid) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: validation.errors },
+    // Validate data
+    const validatedData = applicationSchema.parse(body);
+
+    // Store application
+    applications.push(validatedData);
+
+    // Log to console (for development)
+    console.log('New application received:', {
+      name: validatedData.fullName,
+      email: validatedData.email,
+      company: validatedData.company,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Return success response
+    return Response.json(
+      {
+        success: true,
+        message: 'Application submitted successfully',
+        data: {
+          fullName: validatedData.fullName,
+          email: validatedData.email,
+          timestamp: new Date().toISOString(),
+        },
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    // Handle validation errors
+    if (error instanceof z.ZodError) {
+      return Response.json(
+        {
+          success: false,
+          message: 'Validation failed',
+          errors: error.errors.map(e => ({
+            field: e.path.join('.'),
+            message: e.message,
+          })),
+        },
         { status: 400 }
       );
     }
 
-    const validatedData = validation.data!;
-
-    // Create the application in the store
-    const application = await createApplication(validatedData);
-
-    // Send confirmation email (TODO: implement actual sending)
-    const emailResult = await sendConfirmationEmail(
-      application.email,
-      application.name,
-      application.id
-    );
-
-    // Log warning if email sending fails, but don't fail the request
-    if (!emailResult.success) {
-      console.warn(`Email confirmation failed for application ${application.id}: ${emailResult.error}`);
-    }
-
-    return NextResponse.json(
+    // Handle other errors
+    console.error('Application submission error:', error);
+    return Response.json(
       {
-        success: true,
-        application_id: application.id,
-        message: 'Application submitted successfully',
+        success: false,
+        message: 'An error occurred while processing your application',
       },
-      { status: 201 }
-    );
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`Failed to create application: ${errorMessage}`);
-    return NextResponse.json(
-      { error: 'Failed to submit application', details: errorMessage },
       { status: 500 }
     );
   }
 }
 
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const adminToken = request.headers.get('x-admin-token');
-
-    // Verify admin token
-    if (!adminToken) {
-      return NextResponse.json(
-        { error: 'Missing admin token' },
-        { status: 401 }
-      );
-    }
-
-    // TODO: Validate admin token against environment variable or database
-    const expectedToken = process.env.ADMIN_TOKEN || 'default-admin-token';
-    if (adminToken !== expectedToken) {
-      return NextResponse.json(
-        { error: 'Invalid admin token' },
-        { status: 403 }
-      );
-    }
-
-    // TODO: Implement proper pagination
-    // For now, return all applications
-    return NextResponse.json({
+// GET endpoint to retrieve all applications (demo only)
+export async function GET() {
+  return Response.json(
+    {
       success: true,
-      message: 'Admin endpoint for listing applications',
-      note: 'Implement listing logic as needed',
-    });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`Failed to list applications: ${errorMessage}`);
-    return NextResponse.json(
-      { error: 'Failed to list applications', details: errorMessage },
-      { status: 500 }
-    );
-  }
+      count: applications.length,
+      applications,
+    },
+    { status: 200 }
+  );
 }

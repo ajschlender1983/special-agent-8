@@ -1,293 +1,229 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 
-interface BlackoutDate {
-  date: string;
-  reason?: string;
-}
-
-interface BookedSession {
+interface CalendarEvent {
   date: string;
   title: string;
-  startTime?: string;
-  endTime?: string;
+  description?: string;
+  color?: string;
 }
 
-interface CalendarData {
-  blackout_dates: BlackoutDate[];
-  booked_sessions: BookedSession[];
-  month: string;
+interface CalendarViewProps {
+  events?: CalendarEvent[];
+  accentColor?: string;
 }
 
-export function CalendarView({ month }: { month?: string }) {
-  const [calendarData, setCalendarData] = useState<CalendarData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [currentMonth, setCurrentMonth] = useState(month || new Date().toISOString().slice(0, 7));
+export default function CalendarView({ events = [], accentColor = '#f59e0b' }: CalendarViewProps) {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  useEffect(() => {
-    fetchCalendarData();
-  }, [currentMonth]);
+  const daysInMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  const firstDayOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
 
-  const fetchCalendarData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/calendar?month=${currentMonth}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch calendar data');
-      }
-      const data = await response.json();
-      setCalendarData(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoading(false);
+  const monthEvents = useMemo(() => {
+    const eventMap: Record<string, CalendarEvent[]> = {};
+    events.forEach(event => {
+      const key = new Date(event.date).toLocaleDateString('en-CA');
+      if (!eventMap[key]) eventMap[key] = [];
+      eventMap[key].push(event);
+    });
+    return eventMap;
+  }, [events]);
+
+  const calendarDays = useMemo(() => {
+    const days = [];
+    const totalDays = daysInMonth(currentDate);
+    const firstDay = firstDayOfMonth(currentDate);
+
+    // Empty cells for days before month starts
+    for (let i = 0; i < firstDay; i++) {
+      days.push(null);
     }
-  };
 
-  const getDaysInMonth = (month: string): number => {
-    const [year, monthNum] = month.split('-').map(Number);
-    return new Date(year, monthNum, 0).getDate();
-  };
-
-  const getFirstDayOfMonth = (month: string): number => {
-    const [year, monthNum] = month.split('-').map(Number);
-    return new Date(year, monthNum - 1, 1).getDay();
-  };
-
-  const getStatusForDate = (date: string): 'available' | 'booked' | 'blackout' => {
-    if (!calendarData) return 'available';
-
-    const isBlackout = calendarData.blackout_dates.some((bd) => bd.date === date);
-    if (isBlackout) return 'blackout';
-
-    const isBooked = calendarData.booked_sessions.some((bs) => bs.date === date);
-    if (isBooked) return 'booked';
-
-    return 'available';
-  };
-
-  const getBookedSessionsForDate = (date: string): BookedSession[] => {
-    if (!calendarData) return [];
-    return calendarData.booked_sessions.filter((bs) => bs.date === date);
-  };
-
-  const getBlackoutReasonForDate = (date: string): string | undefined => {
-    if (!calendarData) return undefined;
-    const blackout = calendarData.blackout_dates.find((bd) => bd.date === date);
-    return blackout?.reason;
-  };
-
-  const handlePreviousMonth = () => {
-    const [year, month] = currentMonth.split('-').map(Number);
-    const date = new Date(year, month - 2, 1);
-    setCurrentMonth(date.toISOString().slice(0, 7));
-  };
-
-  const handleNextMonth = () => {
-    const [year, month] = currentMonth.split('-').map(Number);
-    const date = new Date(year, month, 1);
-    setCurrentMonth(date.toISOString().slice(0, 7));
-  };
-
-  const getStatusColor = (status: 'available' | 'booked' | 'blackout'): string => {
-    switch (status) {
-      case 'available':
-        return '#10b981'; // Green
-      case 'booked':
-        return '#eab308'; // Yellow
-      case 'blackout':
-        return '#9ca3af'; // Grey
-      default:
-        return '#ffffff';
+    // Days of the month
+    for (let i = 1; i <= totalDays; i++) {
+      days.push(i);
     }
+
+    return days;
+  }, [currentDate]);
+
+  const goToPreviousMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-gray-500">Loading calendar...</div>
-      </div>
-    );
-  }
+  const goToNextMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
+  };
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-red-500">Error: {error}</div>
-      </div>
-    );
-  }
+  const getDateString = (day: number) => {
+    const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    return date.toLocaleDateString('en-CA');
+  };
 
-  if (!calendarData) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-gray-500">No calendar data available</div>
-      </div>
-    );
-  }
+  const selectedDateString = selectedDate?.toLocaleDateString('en-CA') || null;
+  const selectedDateEvents = selectedDateString ? monthEvents[selectedDateString] : [];
 
-  const daysInMonth = getDaysInMonth(currentMonth);
-  const firstDay = getFirstDayOfMonth(currentMonth);
-  const days: (number | null)[] = Array(firstDay).fill(null);
-
-  for (let i = 1; i <= daysInMonth; i++) {
-    days.push(i);
-  }
-
-  const monthName = new Date(`${currentMonth}-01`).toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric',
-  });
+  const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="w-full max-w-2xl mx-auto p-6 rounded-2xl glass"
+    <motion.section
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6 }}
+      className="w-full"
     >
+      {/* Header */}
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <button
-            onClick={handlePreviousMonth}
-            className="px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            style={{ color: 'var(--color-primary)' }}
-          >
-            ← Previous
-          </button>
-          <h2 className="text-2xl font-semibold" style={{ color: 'var(--color-primary)' }}>
-            {monthName}
-          </h2>
-          <button
-            onClick={handleNextMonth}
-            className="px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            style={{ color: 'var(--color-primary)' }}
-          >
-            Next →
-          </button>
+        <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-neutral-500 mb-2">
+          Schedule
         </div>
-
-        <div className="flex gap-2 justify-center mb-4 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#10b981' }} />
-            <span>Available</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#eab308' }} />
-            <span>Booked</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#9ca3af' }} />
-            <span>Blackout</span>
-          </div>
-        </div>
+        <h2 className="text-3xl font-bold text-white" style={{ fontFamily: 'var(--font-heading, "Cormorant Garamond", serif)' }}>
+          Calendar View
+        </h2>
       </div>
 
-      {/* Weekday headers */}
-      <div className="grid grid-cols-7 gap-2 mb-2">
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-          <div
-            key={day}
-            className="text-center font-semibold text-sm py-2"
-            style={{ color: 'var(--color-primary)' }}
-          >
-            {day}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Calendar */}
+        <div className="lg:col-span-2">
+          <div className="glass rounded-2xl p-6">
+            {/* Month/Year header */}
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-white">{monthName}</h3>
+              <div className="flex gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={goToPreviousMonth}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                  style={{ backgroundColor: accentColor + '20', color: accentColor }}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={goToNextMonth}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                  style={{ backgroundColor: accentColor + '20', color: accentColor }}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </motion.button>
+              </div>
+            </div>
+
+            {/* Weekday headers */}
+            <div className="grid grid-cols-7 gap-2 mb-3">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <div key={day} className="text-center text-[10px] font-mono uppercase tracking-wider text-neutral-500 py-2">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar grid */}
+            <div className="grid grid-cols-7 gap-2">
+              {calendarDays.map((day, idx) => {
+                const dateString = day ? getDateString(day) : null;
+                const dayEvents = dateString ? monthEvents[dateString] : [];
+                const isSelected = selectedDate && dateString === selectedDate.toLocaleDateString('en-CA');
+                const isToday = day && dateString === new Date().toLocaleDateString('en-CA');
+
+                return (
+                  <motion.button
+                    key={idx}
+                    whileHover={day ? { scale: 1.05 } : undefined}
+                    whileTap={day ? { scale: 0.95 } : undefined}
+                    onClick={() => day && setSelectedDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), day))}
+                    className={`aspect-square rounded-lg flex items-center justify-center text-sm font-medium transition-all relative ${
+                      !day
+                        ? 'invisible'
+                        : isSelected
+                          ? 'text-neutral-950 shadow-lg'
+                          : isToday
+                            ? 'ring-1 text-white'
+                            : dayEvents.length > 0
+                              ? 'text-white'
+                              : 'text-neutral-400 hover:text-neutral-200'
+                    }`}
+                    style={
+                      isSelected ? { backgroundColor: accentColor } : isToday ? { borderColor: accentColor, borderWidth: '1px' } : dayEvents.length > 0 ? { backgroundColor: accentColor + '20' } : undefined
+                    }
+                  >
+                    {day}
+                    {dayEvents.length > 0 && (
+                      <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 flex gap-0.5">
+                        {dayEvents.slice(0, 3).map((_, i) => (
+                          <div key={i} className="w-1 h-1 rounded-full" style={{ backgroundColor: accentColor }} />
+                        ))}
+                      </div>
+                    )}
+                  </motion.button>
+                );
+              })}
+            </div>
           </div>
-        ))}
-      </div>
+        </div>
 
-      {/* Calendar grid */}
-      <div className="grid grid-cols-7 gap-2">
-        {days.map((day, index) => {
-          if (day === null) {
-            return <div key={`empty-${index}`} className="aspect-square" />;
-          }
+        {/* Events panel */}
+        <div className="glass rounded-2xl p-6 h-fit">
+          <div className="text-[11px] font-mono uppercase tracking-wider text-neutral-500 mb-4">
+            {selectedDate ? 'Selected Events' : 'Select a Date'}
+          </div>
 
-          const dateStr = `${currentMonth}-${String(day).padStart(2, '0')}`;
-          const status = getStatusForDate(dateStr);
-          const statusColor = getStatusColor(status);
-          const bookedSessions = getBookedSessionsForDate(dateStr);
-          const blackoutReason = getBlackoutReasonForDate(dateStr);
+          {selectedDate && (
+            <>
+              <div className="mb-4">
+                <p className="text-white font-medium text-sm">
+                  {selectedDate.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </p>
+              </div>
 
-          return (
-            <motion.div
-              key={day}
-              whileHover={{ scale: 1.05 }}
-              className="aspect-square rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all hover:shadow-lg group relative"
-              style={{
-                backgroundColor: statusColor,
-                opacity: status === 'available' ? 0.9 : 0.8,
-              }}
-            >
-              <span className="text-sm font-semibold text-white z-10">{day}</span>
-
-              {/* Tooltip on hover */}
-              {(bookedSessions.length > 0 || blackoutReason) && (
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-900 text-white px-3 py-2 rounded-lg text-xs whitespace-nowrap z-20">
-                  {blackoutReason && <div>{blackoutReason}</div>}
-                  {bookedSessions.map((session, idx) => (
-                    <div key={idx}>{session.title}</div>
+              {selectedDateEvents.length > 0 ? (
+                <div className="space-y-3">
+                  {selectedDateEvents.map((event, idx) => (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.1 }}
+                      className="p-3 rounded-lg border-l-2 bg-white/5"
+                      style={{ borderColor: event.color || accentColor }}
+                    >
+                      <p className="text-white font-medium text-sm mb-1">{event.title}</p>
+                      {event.description && (
+                        <p className="text-neutral-400 text-xs">{event.description}</p>
+                      )}
+                    </motion.div>
                   ))}
                 </div>
+              ) : (
+                <p className="text-neutral-500 text-xs">No events scheduled</p>
               )}
+            </>
+          )}
 
-              {/* Indicator dot for booked sessions */}
-              {bookedSessions.length > 0 && (
-                <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-white opacity-75" />
-              )}
-            </motion.div>
-          );
-        })}
+          {!selectedDate && (
+            <div className="text-center py-8">
+              <svg className="w-12 h-12 mx-auto mb-2 opacity-30 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <p className="text-neutral-500 text-xs">Click a date to view events</p>
+            </div>
+          )}
+        </div>
       </div>
-
-      {/* Session details section */}
-      {calendarData.booked_sessions.length > 0 && (
-        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-          <h3 className="font-semibold mb-4" style={{ color: 'var(--color-primary)' }}>
-            Booked Sessions ({calendarData.booked_sessions.length})
-          </h3>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {calendarData.booked_sessions.map((session, idx) => (
-              <div
-                key={idx}
-                className="p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-sm"
-              >
-                <div className="font-medium">{session.title}</div>
-                <div className="text-gray-600 dark:text-gray-400 text-xs">
-                  {session.date}
-                  {session.startTime && ` • ${session.startTime}`}
-                  {session.endTime && ` - ${session.endTime}`}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Blackout dates section */}
-      {calendarData.blackout_dates.length > 0 && (
-        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-          <h3 className="font-semibold mb-4" style={{ color: 'var(--color-primary)' }}>
-            Blackout Dates ({calendarData.blackout_dates.length})
-          </h3>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {calendarData.blackout_dates.map((blackout, idx) => (
-              <div
-                key={idx}
-                className="p-3 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-sm"
-              >
-                <div className="font-medium">{blackout.date}</div>
-                {blackout.reason && (
-                  <div className="text-gray-600 dark:text-gray-400 text-xs">{blackout.reason}</div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </motion.div>
+    </motion.section>
   );
 }

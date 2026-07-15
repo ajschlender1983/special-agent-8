@@ -2,8 +2,24 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Special Agent #8 — Light Pump Labs",
-  description: "Personalized experience engine",
+  title: "Special Agent #8 — Light Pump Labs | Conversational Intelligence",
+  description: "Personalized experience engine with integrated components, application forms, and dynamic galleries. Powered by LPL ecosystem.",
+  keywords: ["AI", "Experience", "Light Pump Labs", "LPL", "Agent"],
+  authors: [{ name: "Light Pump Labs" }],
+  openGraph: {
+    title: "Special Agent #8 — Conversational Intelligence",
+    description: "Personalized experience engine for the LPL ecosystem",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Special Agent #8",
+    description: "Conversational intelligence for personalized experiences",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
